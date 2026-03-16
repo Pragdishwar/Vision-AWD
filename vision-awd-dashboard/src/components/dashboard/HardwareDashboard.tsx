@@ -2,9 +2,9 @@ import { useEffect, useState, useRef } from "react";
 import { Camera, Droplets, Sun, Power, AlertTriangle } from "lucide-react";
 
 // The local IP of the ESP32 on the network
-const ESP32_IP = "http://10.79.244.177";
+export const ESP32_IP = "http://10.79.244.177";
 
-export const HardwareDashboard = () => {
+export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status: any) => void }) => {
     const [status, setStatus] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -19,6 +19,7 @@ export const HardwareDashboard = () => {
                 })
                 .then((data) => {
                     setStatus(data);
+                    if (onStatusUpdate) onStatusUpdate(data);
                     setError(null);
                 })
                 .catch((err) => {

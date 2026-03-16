@@ -46,6 +46,9 @@ int currentSensorVal = 0;
 bool sensorIsDry = false;
 bool pumpIsOn = false;
 
+// Manual Override Flags
+bool manualOverride = false;
+bool manualPumpState = false;
 unsigned long lastCheckTime = 0;
 const unsigned long CHECK_INTERVAL = 10000; // Check and analyze every 10 seconds
 
@@ -208,18 +211,57 @@ static esp_err_t image_handler(httpd_req_t *req) {
 static esp_err_t status_handler(httpd_req_t *req) {
   char json[256];
   snprintf(json, sizeof(json), 
-    "{\"s1\":%d,\"s2\":%d,\"s3\":%d,\"s4\":%d,\"thresh\":%d,\"dryCount\":%d,\"visionDry\":%s,\"sensorVal\":%d,\"sensorDry\":%s,\"pumpOn\":%s}",
+    "{\"s1\":%d,\"s2\":%d,\"s3\":%d,\"s4\":%d,\"thresh\":%d,\"dryCount\":%d,\"visionDry\":%s,\"sensorVal\":%d,\"sensorDry\":%s,\"pumpOn\":%s,\"manualOverride\":%s}",
     avgS1, avgS2, avgS3, avgS4, DRY_BRIGHTNESS_THRESHOLD, currentDryCount,
     visionIsDry ? "true" : "false",
     currentSensorVal,
     sensorIsDry ? "true" : "false",
-    pumpIsOn ? "true" : "false"
+    pumpIsOn ? "true" : "false",
+    manualOverride ? "true" : "false"
   );
   
   // CORS Headers for React Integration
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json, strlen(json));
+}
+
+// Handles manual pump overrides
+static esp_err_t pump_handler(httpd_req_t *req) {
+  char* buf;
+  size_t buf_len;
+  char state[32] = {0};
+
+  buf_len = httpd_req_get_url_query_len(req) + 1;
+  if (buf_len > 1) {
+    buf = (char*)malloc(buf_len);
+    if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+      if (httpd_query_key_value(buf, "state", state, sizeof(state)) == ESP_OK) {
+        if (strcmp(state, "on") == 0) {
+          manualOverride = true;
+          manualPumpState = true;
+        } else if (strcmp(state, "off") == 0) {
+          manualOverride = true;
+          manualPumpState = false;
+        } else if (strcmp(state, "auto") == 0) {
+          manualOverride = false;
+        }
+      }
+    }
+    free(buf);
+  }
+  
+  // Update pump state immediately
+  if (manualOverride) {
+      pumpIsOn = manualPumpState;
+  } else {
+      pumpIsOn = (visionIsDry && sensorIsDry);
+  }
+  digitalWrite(RELAY_PIN, pumpIsOn ? HIGH : LOW);
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_send(req, "{\"success\":true}", 16);
 }
 
 void startCameraServer() {
@@ -229,11 +271,13 @@ void startCameraServer() {
   httpd_uri_t index_uri = { .uri = "/", .method = HTTP_GET, .handler = index_handler, .user_ctx = NULL };
   httpd_uri_t image_uri = { .uri = "/image", .method = HTTP_GET, .handler = image_handler, .user_ctx = NULL };
   httpd_uri_t status_uri = { .uri = "/status", .method = HTTP_GET, .handler = status_handler, .user_ctx = NULL };
+  httpd_uri_t pump_uri = { .uri = "/pump", .method = HTTP_GET, .handler = pump_handler, .user_ctx = NULL };
 
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &index_uri);
     httpd_register_uri_handler(camera_httpd, &image_uri);
     httpd_register_uri_handler(camera_httpd, &status_uri);
+    httpd_register_uri_handler(camera_httpd, &pump_uri);
     Serial.println("Web Server started successfully!");
   } else {
     Serial.println("Failed to start Web Server");
@@ -290,7 +334,11 @@ void performAnalysis() {
   sensorIsDry = (currentSensorVal > DRY_SENSOR_THRESHOLD);
   
   // Both systems must agree the soil is dry to start pumping water
-  pumpIsOn = (visionIsDry && sensorIsDry);
+  if (manualOverride) {
+      pumpIsOn = manualPumpState;
+  } else {
+      pumpIsOn = (visionIsDry && sensorIsDry);
+  }
 
   digitalWrite(RELAY_PIN, pumpIsOn ? HIGH : LOW);
 

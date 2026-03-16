@@ -4,37 +4,67 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
-import { HardwareDashboard } from "./HardwareDashboard";
+import { HardwareDashboard, ESP32_IP } from "./HardwareDashboard";
 
-// Mock data
-const generateMoistureData = () =>
-  Array.from({ length: 24 }, (_, i) => ({
-    time: `${String(i).padStart(2, "0")}:00`,
-    moisture: Math.round(35 + Math.random() * 40),
-    brightness: Math.round(120 + Math.random() * 80),
-  }));
-
-const initialLogs = [
-  { time: "14:32:01", event: "Image captured", type: "info" as const },
-  { time: "14:32:03", event: "Dryness detected — Zone A (72%)", type: "warning" as const },
-  { time: "14:32:05", event: "Pump activated", type: "success" as const },
-  { time: "14:38:22", event: "Moisture threshold reached (65%)", type: "info" as const },
-  { time: "14:38:24", event: "Pump deactivated", type: "success" as const },
-  { time: "14:45:01", event: "Image captured", type: "info" as const },
-];
-
+// Initialization
 const DashboardContent = () => {
   const [pumpOn, setPumpOn] = useState(false);
   const [threshold, setThreshold] = useState([45]);
-  const [moistureData, setMoistureData] = useState(generateMoistureData);
-  const [logs, setLogs] = useState(initialLogs);
+  const [moistureData, setMoistureData] = useState<{ time: string, moisture: number, brightness: number }[]>([]);
+  const [logs, setLogs] = useState<{ time: string, event: string, type: "info" | "warning" | "success" }[]>([
+    { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: "System initialized. Waiting for hardware data...", type: "info" as const },
+  ]);
 
   const handleRefresh = () => {
-    setMoistureData(generateMoistureData());
     setLogs((prev) => [
-      { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: "Data refreshed", type: "info" as const },
+      { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: "Manual refresh requested", type: "info" as const },
       ...prev,
     ]);
+  };
+
+  const handlePumpToggle = async (newState: boolean) => {
+    setPumpOn(newState);
+    setLogs((prev) => [
+      { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: `Manual override: Pump ${newState ? "ACTIVATED" : "DEACTIVATED"}`, type: "info" as const },
+      ...prev,
+    ]);
+    try {
+      await fetch(`${ESP32_IP}/pump?state=${newState ? "on" : "off"}`);
+    } catch (err) {
+      console.error("Failed to set pump state:", err);
+    }
+  };
+
+
+  const handleStatusUpdate = (status: any) => {
+    // Inverse scale the sensor val to a 0-100% moisture reading
+    const moistureValue = Math.max(0, Math.min(100, Math.round(100 - (status.sensorVal / 4095) * 100)));
+    const avgBrightness = Math.round((status.s1 + status.s2 + status.s3 + status.s4) / 4);
+
+    const timeString = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
+
+    // Ensure we don't clobber manual toggles instantly, but sync the state.
+    setPumpOn(status.pumpOn);
+
+    setMoistureData((prev) => {
+      const newData = [...prev, { time: timeString, moisture: moistureValue, brightness: avgBrightness }];
+      // keep last 24 items
+      if (newData.length > 24) newData.shift();
+      return newData;
+    });
+
+    if (status.visionDry || status.sensorDry) {
+      setLogs((prev) => {
+        // Prevent spamming the same log every 2 seconds
+        const lastLog = prev[0];
+        if (lastLog && lastLog.event.includes("Dryness detected")) return prev;
+
+        return [
+          { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: `Dryness detected (Moisture: ${moistureValue}%)`, type: "warning" as const },
+          ...prev,
+        ].slice(0, 50); // Keep max 50 logs
+      });
+    }
   };
 
   const currentMoisture = moistureData[moistureData.length - 1]?.moisture ?? 0;
@@ -77,7 +107,7 @@ const DashboardContent = () => {
 
       {/* Main grid */}
       <div className="grid lg:grid-cols-3 gap-6 align-stretch h-full items-stretch">
-        <HardwareDashboard />
+        <HardwareDashboard onStatusUpdate={handleStatusUpdate} />
 
         {/* Charts */}
         <div className="lg:col-span-2 space-y-6">
@@ -125,7 +155,7 @@ const DashboardContent = () => {
               <p className="font-medium text-foreground text-sm">Pump Override</p>
               <p className="text-xs text-muted-foreground">Manually toggle pump ON/OFF</p>
             </div>
-            <Switch checked={pumpOn} onCheckedChange={setPumpOn} />
+            <Switch checked={pumpOn} onCheckedChange={handlePumpToggle} />
           </div>
           <div>
             <div className="flex items-center justify-between mb-2">
