@@ -10,7 +10,7 @@ const char* password = "CITAR@123";
 
 // Vision Threshold (0-255). Dry soil is usually brighter in Grayscale.
 // Calibrate this based on your specific soil and lighting!
-const uint8_t DRY_BRIGHTNESS_THRESHOLD = 150; 
+uint8_t DRY_BRIGHTNESS_THRESHOLD = 150; 
 
 // Moisture Sensor Threshold (0-4095 for ESP32 ADC)
 // Calibrate depending on your specific analog sensor.
@@ -264,6 +264,29 @@ static esp_err_t pump_handler(httpd_req_t *req) {
   return httpd_resp_send(req, "{\"success\":true}", 16);
 }
 
+// Handles dynamic threshold configuration
+static esp_err_t config_handler(httpd_req_t *req) {
+  char* buf;
+  size_t buf_len;
+  char thresh[16] = {0};
+
+  buf_len = httpd_req_get_url_query_len(req) + 1;
+  if (buf_len > 1) {
+    buf = (char*)malloc(buf_len);
+    if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+      if (httpd_query_key_value(buf, "threshold", thresh, sizeof(thresh)) == ESP_OK) {
+        DRY_BRIGHTNESS_THRESHOLD = (uint8_t)atoi(thresh);
+        Serial.printf("Dashboard updated threshold to: %d\n", DRY_BRIGHTNESS_THRESHOLD);
+      }
+    }
+    free(buf);
+  }
+  
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_set_type(req, "application/json");
+  return httpd_resp_send(req, "{\"success\":true}", 16);
+}
+
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 80;
@@ -272,12 +295,14 @@ void startCameraServer() {
   httpd_uri_t image_uri = { .uri = "/image", .method = HTTP_GET, .handler = image_handler, .user_ctx = NULL };
   httpd_uri_t status_uri = { .uri = "/status", .method = HTTP_GET, .handler = status_handler, .user_ctx = NULL };
   httpd_uri_t pump_uri = { .uri = "/pump", .method = HTTP_GET, .handler = pump_handler, .user_ctx = NULL };
+  httpd_uri_t config_uri = { .uri = "/config", .method = HTTP_GET, .handler = config_handler, .user_ctx = NULL };
 
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &index_uri);
     httpd_register_uri_handler(camera_httpd, &image_uri);
     httpd_register_uri_handler(camera_httpd, &status_uri);
     httpd_register_uri_handler(camera_httpd, &pump_uri);
+    httpd_register_uri_handler(camera_httpd, &config_uri);
     Serial.println("Web Server started successfully!");
   } else {
     Serial.println("Failed to start Web Server");
@@ -406,6 +431,23 @@ void setup() {
 }
 
 void loop() {
+  // WiFi Watchdog
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("\nWiFi connection lost! Reconnecting...");
+    WiFi.disconnect();
+    WiFi.begin(ssid, password);
+    unsigned long startAttemptTime = millis();
+    while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
+      delay(500);
+      Serial.print(".");
+    }
+    if (WiFi.status() == WL_CONNECTED) {
+       Serial.println("\nSUCCESS: WiFi Reconnected!");
+    } else {
+       Serial.println("\nFAIL: Reconnect attempt timed out.");
+    }
+  }
+
   if (millis() - lastCheckTime >= CHECK_INTERVAL) {
     lastCheckTime = millis();
     performAnalysis();

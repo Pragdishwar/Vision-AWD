@@ -2,11 +2,12 @@ import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { useState, useEffect } from "react";
+import { ESP32_IP } from "@/components/dashboard/HardwareDashboard";
 
 const DashboardSettings = () => {
   const [autoMode, setAutoMode] = useState(true);
   const [notifications, setNotifications] = useState(true);
-  const [calibration, setCalibration] = useState([50]);
+  const [calibration, setCalibration] = useState([150]); // Changed to match default C++ absolute value (0-255)
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains("dark");
@@ -19,6 +20,15 @@ const DashboardSettings = () => {
       document.documentElement.classList.remove("dark");
     }
   }, [isDarkMode]);
+
+  const handleThresholdChange = async (val: number[]) => {
+    setCalibration(val);
+    try {
+      await fetch(`${ESP32_IP}/config?threshold=${val[0]}`);
+    } catch (err) {
+      console.error("Failed to update threshold", err);
+    }
+  };
 
   return (
     <div className="flex min-h-screen w-full">
@@ -56,10 +66,10 @@ const DashboardSettings = () => {
           <div className="metric-card space-y-4">
             <h3 className="font-display font-semibold text-foreground">Threshold Calibration</h3>
             <div className="flex items-center justify-between mb-1">
-              <p className="text-sm text-muted-foreground">Dryness detection sensitivity</p>
-              <span className="text-sm font-semibold text-primary">{calibration[0]}%</span>
+              <p className="text-sm text-muted-foreground">Dryness detection sensitivity (0-255 grayscale)</p>
+              <span className="text-sm font-semibold text-primary">{calibration[0]}</span>
             </div>
-            <Slider value={calibration} onValueChange={setCalibration} min={10} max={90} step={1} />
+            <Slider value={calibration} onValueChange={handleThresholdChange} min={0} max={255} step={1} />
           </div>
         </div>
       </div>

@@ -78,14 +78,14 @@ const DashboardContent = () => {
   ];
 
   return (
-    <div className="flex-1 overflow-auto bg-muted/50 p-6 space-y-6">
+    <div className="flex-1 overflow-auto bg-background p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold font-display text-foreground">Irrigation Dashboard</h1>
           <p className="text-sm text-muted-foreground">Real-time monitoring and control</p>
         </div>
-        <Button onClick={handleRefresh} variant="outline" size="sm" className="gap-2">
+        <Button onClick={handleRefresh} variant="outline" size="sm" className="gap-2 bg-card border-border/50 hover:bg-muted text-foreground">
           <RefreshCw className="h-4 w-4" /> Refresh
         </Button>
       </div>
@@ -94,7 +94,7 @@ const DashboardContent = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((m) => (
           <div key={m.label} className="metric-card flex items-start gap-4">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-muted ${m.color}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-black/40 border border-white/5 shadow-inner ${m.color}`}>
               <m.icon className="h-5 w-5" />
             </div>
             <div>
@@ -117,27 +117,28 @@ const DashboardContent = () => {
               <AreaChart data={moistureData}>
                 <defs>
                   <linearGradient id="moistureGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(152, 55%, 38%)" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="hsl(152, 55%, 38%)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="hsl(152, 55%, 48%)" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(152, 55%, 48%)" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(140, 15%, 89%)" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="hsl(215, 20%, 46%)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="hsl(215, 20%, 46%)" />
-                <Tooltip />
-                <Area type="monotone" dataKey="moisture" stroke="hsl(152, 55%, 38%)" fill="url(#moistureGrad)" strokeWidth={2} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(215, 40%, 18%)" />
+                <XAxis dataKey="time" tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
+                <YAxis tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(215, 50%, 10%)', borderColor: 'hsl(215, 40%, 18%)', color: 'hsl(140, 20%, 95%)', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="moisture" stroke="hsl(152, 55%, 48%)" fill="url(#moistureGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="metric-card">
+          <div className="metric-card relative overflow-hidden group">
+            <div className="absolute inset-0 bg-gradient-to-r from-warning/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
             <h3 className="font-display font-semibold text-foreground mb-4">Brightness Trend</h3>
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={moistureData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(140, 15%, 89%)" />
-                <XAxis dataKey="time" tick={{ fontSize: 11 }} stroke="hsl(215, 20%, 46%)" />
-                <YAxis tick={{ fontSize: 11 }} stroke="hsl(215, 20%, 46%)" />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(215, 40%, 18%)" />
+                <XAxis dataKey="time" tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
+                <YAxis tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(215, 50%, 10%)', borderColor: 'hsl(215, 40%, 18%)', color: 'hsl(140, 20%, 95%)', borderRadius: '8px' }} />
                 <Line type="monotone" dataKey="brightness" stroke="hsl(38, 92%, 50%)" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -148,32 +149,33 @@ const DashboardContent = () => {
       {/* Control + Logs */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Control Panel */}
-        <div className="metric-card space-y-6">
-          <h3 className="font-display font-semibold text-foreground">Control Panel</h3>
-          <div className="flex items-center justify-between">
+        <div className="metric-card relative overflow-hidden group space-y-6">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+          <h3 className="font-display font-semibold text-foreground relative z-10">Control Panel</h3>
+          <div className="flex items-center justify-between relative z-10">
             <div>
               <p className="font-medium text-foreground text-sm">Pump Override</p>
               <p className="text-xs text-muted-foreground">Manually toggle pump ON/OFF</p>
             </div>
-            <Switch checked={pumpOn} onCheckedChange={handlePumpToggle} />
+            <Switch checked={pumpOn} onCheckedChange={handlePumpToggle} className="data-[state=checked]:bg-primary" />
           </div>
-          <div>
+          <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
               <p className="font-medium text-foreground text-sm">Moisture Threshold</p>
-              <span className="text-xs font-semibold text-primary">{threshold[0]}%</span>
+              <span className="text-xs font-semibold text-primary drop-shadow-[0_0_8px_rgba(50,205,50,0.5)]">{threshold[0]}%</span>
             </div>
-            <Slider value={threshold} onValueChange={setThreshold} min={20} max={80} step={1} className="w-full" />
+            <Slider value={threshold} onValueChange={setThreshold} min={20} max={80} step={1} className="w-full relative z-10" />
           </div>
         </div>
 
         {/* System Logs */}
-        <div className="metric-card">
+        <div className="metric-card relative">
           <h3 className="font-display font-semibold text-foreground mb-4">System Logs</h3>
-          <div className="space-y-2 max-h-52 overflow-y-auto">
+          <div className="space-y-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
             {logs.map((log, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm py-1.5 border-b border-border last:border-0">
-                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap">{log.time}</span>
-                <span className={`flex-1 ${log.type === "warning" ? "text-warning" : log.type === "success" ? "text-primary" : "text-foreground"}`}>
+              <div key={i} className="flex items-start gap-3 text-sm py-2 border-b border-border/50 last:border-0 hover:bg-white/5 px-2 rounded transition-colors">
+                <span className="text-xs text-muted-foreground font-mono whitespace-nowrap mt-0.5">{log.time}</span>
+                <span className={`flex-1 ${log.type === "warning" ? "text-warning drop-shadow-[0_0_4px_rgba(255,165,0,0.5)]" : log.type === "success" ? "text-primary drop-shadow-[0_0_4px_rgba(50,205,50,0.5)]" : "text-foreground"}`}>
                   {log.event}
                 </span>
               </div>

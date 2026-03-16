@@ -8,6 +8,7 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
     const [status, setStatus] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const statusRef = useRef<any>(null);
 
     useEffect(() => {
         // 1. Fetch the logic and sensor data every 2 seconds
@@ -19,6 +20,7 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                 })
                 .then((data) => {
                     setStatus(data);
+                    statusRef.current = data;
                     if (onStatusUpdate) onStatusUpdate(data);
                     setError(null);
                 })
@@ -48,6 +50,32 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                         imgData.data[offset + 3] = 255; // Alpha
                     }
                     ctx.putImageData(imgData, 0, 0);
+
+                    const currentStatus = statusRef.current;
+                    if (currentStatus) {
+                        const { s1, s2, s3, s4, thresh } = currentStatus;
+
+                        const drawQuad = (x: number, y: number, val: number, label: string) => {
+                            const isDry = val > thresh;
+                            ctx.fillStyle = isDry ? "rgba(255, 60, 60, 0.25)" : "rgba(50, 205, 50, 0.25)";
+                            ctx.fillRect(x, y, 80, 60);
+
+                            ctx.strokeStyle = isDry ? "rgba(255, 60, 60, 0.8)" : "rgba(50, 205, 50, 0.8)";
+                            ctx.lineWidth = 1;
+                            ctx.setLineDash([2, 2]);
+                            ctx.strokeRect(x, y, 80, 60);
+
+                            ctx.fillStyle = isDry ? "#ff3c3c" : "#32cd32";
+                            ctx.font = "bold 10px sans-serif";
+                            ctx.fillText(`${label}: ${val}`, x + 5, y + 15);
+                        };
+
+                        drawQuad(0, 0, s1, "S1");
+                        drawQuad(80, 0, s2, "S2");
+                        drawQuad(0, 60, s3, "S3");
+                        drawQuad(80, 60, s4, "S4");
+                    }
+
                     setError(null);
                 })
                 .catch((err) => {
