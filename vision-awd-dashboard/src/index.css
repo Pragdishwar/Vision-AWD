@@ -6,61 +6,60 @@
 
 @layer base {
   :root {
-    --background: 215 60% 6%;
-    --foreground: 140 20% 95%;
+    --background: 140 20% 98%;
+    --foreground: 215 50% 12%;
 
-    --card: 215 50% 10%;
-    --card-foreground: 140 20% 95%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 50% 12%;
 
-    --popover: 215 50% 10%;
-    --popover-foreground: 140 20% 95%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 50% 12%;
 
-    --primary: 152 55% 48%; /* Neon Green */
+    --primary: 152 55% 38%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 215 40% 22%;
+    --secondary: 215 60% 18%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 215 40% 15%;
-    --muted-foreground: 215 20% 60%;
+    --muted: 140 15% 94%;
+    --muted-foreground: 215 20% 46%;
 
-    --accent: 152 30% 15%;
-    --accent-foreground: 152 55% 60%;
+    --accent: 152 45% 92%;
+    --accent-foreground: 152 55% 28%;
 
-    --destructive: 0 62% 30%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 40% 18%;
-    --input: 215 40% 18%;
-    --ring: 152 55% 48%;
+    --border: 140 15% 89%;
+    --input: 140 15% 89%;
+    --ring: 152 55% 38%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 215 60% 12%;
     --sidebar-foreground: 215 20% 85%;
-    --sidebar-primary: 152 55% 48%;
+    --sidebar-primary: 152 55% 38%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 215 50% 18%;
     --sidebar-accent-foreground: 215 20% 90%;
     --sidebar-border: 215 40% 20%;
-    --sidebar-ring: 152 55% 48%;
+    --sidebar-ring: 152 55% 38%;
 
     /* Custom tokens */
-    --success: 152 55% 48%;
+    --success: 152 55% 38%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
     --info: 210 100% 52%;
     --info-foreground: 0 0% 100%;
 
-    /* Premium Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(152, 55%, 48%) 0%, hsl(215, 60%, 18%) 100%);
-    --gradient-card: linear-gradient(180deg, rgba(20, 30, 48, 0.7) 0%, rgba(15, 20, 35, 0.9) 100%);
-    --gradient-dark: linear-gradient(135deg, hsl(215, 60%, 8%) 0%, hsl(215, 50%, 12%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(152, 55%, 38%) 0%, hsl(215, 60%, 18%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(0, 0%, 100%) 0%, hsl(140, 20%, 97%) 100%);
+    --gradient-dark: linear-gradient(135deg, hsl(215, 60%, 12%) 0%, hsl(215, 50%, 18%) 100%);
 
-    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.05);
-    --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.1);
-    --shadow-glow: 0 0 24px rgba(50, 205, 50, 0.3);
+    --shadow-card: 0 1px 3px hsl(215 50% 12% / 0.06), 0 4px 12px hsl(215 50% 12% / 0.04);
+    --shadow-elevated: 0 4px 16px hsl(215 50% 12% / 0.08), 0 12px 32px hsl(215 50% 12% / 0.06);
+    --shadow-glow: 0 0 24px hsl(152 55% 38% / 0.2);
 
     --font-display: 'Space Grotesk', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
@@ -93,11 +92,18 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body);
   }
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-display);
   }
 }
@@ -106,31 +112,40 @@
   .hero-gradient {
     background: var(--gradient-hero);
   }
+
   .card-gradient {
     background: var(--gradient-card);
   }
+
   .dark-gradient {
     background: var(--gradient-dark);
   }
+
   .shadow-card {
     box-shadow: var(--shadow-card);
   }
+
   .shadow-elevated {
     box-shadow: var(--shadow-elevated);
   }
+
   .shadow-glow {
     box-shadow: var(--shadow-glow);
   }
+
   .glass {
     @apply bg-card/80 backdrop-blur-lg border border-border/50;
   }
+
   .metric-card {
     @apply rounded-xl p-6 shadow-card transition-all duration-300 hover:shadow-elevated;
     background: var(--gradient-card);
   }
+
   .section-padding {
     @apply py-20 md:py-28 px-6;
   }
+
   .container-narrow {
     @apply max-w-6xl mx-auto;
   }
