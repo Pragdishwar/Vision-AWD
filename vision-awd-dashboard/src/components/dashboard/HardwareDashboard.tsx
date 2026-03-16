@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Camera, Droplets, Sun, Power, AlertTriangle } from "lucide-react";
 
 // The local IP of the ESP32 on the network
-const ESP32_IP = "http://192.168.1.50";
+const ESP32_IP = "http://10.79.244.177";
 
 export const HardwareDashboard = () => {
     const [status, setStatus] = useState<any>(null);
