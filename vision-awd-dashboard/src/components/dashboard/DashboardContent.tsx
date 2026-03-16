@@ -59,6 +59,14 @@ const DashboardContent = () => {
         const lastLog = prev[0];
         if (lastLog && lastLog.event.includes("Dryness detected")) return prev;
 
+        const isNotificationsEnabled = localStorage.getItem("agrivision_notifications") === "true";
+        if (isNotificationsEnabled && "Notification" in window && Notification.permission === "granted") {
+          new Notification("AgriVision Alert", {
+            body: `Dry soil detected (Moisture: ${moistureValue}%). Pump activated.`,
+            icon: "/favicon.svg" // Assumes standard vite favicon is present
+          });
+        }
+
         return [
           { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: `Dryness detected (Moisture: ${moistureValue}%)`, type: "warning" as const },
           ...prev,

@@ -6,12 +6,26 @@ import { ESP32_IP } from "@/components/dashboard/HardwareDashboard";
 
 const DashboardSettings = () => {
   const [autoMode, setAutoMode] = useState(true);
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(() => {
+    return localStorage.getItem("agrivision_notifications") === "true";
+  });
   const [calibration, setCalibration] = useState([150]); // Changed to match default C++ absolute value (0-255)
 
   const [isDarkMode, setIsDarkMode] = useState(() => {
     return document.documentElement.classList.contains("dark");
   });
+
+  // Fetch initial auto mode state from ESP32
+  useEffect(() => {
+    fetch(`${ESP32_IP}/status`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.isAutoMode !== undefined) {
+          setAutoMode(data.isAutoMode);
+        }
+      })
+      .catch(err => console.error("Could not fetch initial auto mode:", err));
+  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -30,6 +44,34 @@ const DashboardSettings = () => {
     }
   };
 
+  const handleAutoModeChange = async (checked: boolean) => {
+    setAutoMode(checked);
+    try {
+      await fetch(`${ESP32_IP}/mode?auto=${checked}`);
+    } catch (err) {
+      console.error("Failed to update auto mode", err);
+    }
+  };
+
+  const handleNotificationsChange = (checked: boolean) => {
+    if (checked) {
+      if (!("Notification" in window)) {
+        alert("This browser does not support desktop notifications.");
+        return;
+      }
+      Notification.requestPermission().then((permission) => {
+        if (permission === "granted") {
+          setNotifications(true);
+          localStorage.setItem("agrivision_notifications", "true");
+          new Notification("AgriVision Alerts Enabled", { body: "You will now receive alerts for critical events." });
+        }
+      });
+    } else {
+      setNotifications(false);
+      localStorage.setItem("agrivision_notifications", "false");
+    }
+  };
+
   return (
     <div className="flex min-h-screen w-full">
       <DashboardSidebar />
@@ -45,14 +87,14 @@ const DashboardSettings = () => {
                 <p className="font-medium text-foreground text-sm">Auto / Manual Mode</p>
                 <p className="text-xs text-muted-foreground">When enabled, pump runs automatically based on sensor data.</p>
               </div>
-              <Switch checked={autoMode} onCheckedChange={setAutoMode} />
+              <Switch checked={autoMode} onCheckedChange={handleAutoModeChange} />
             </div>
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium text-foreground text-sm">Notifications</p>
                 <p className="text-xs text-muted-foreground">Receive alerts for pump events and threshold breaches.</p>
               </div>
-              <Switch checked={notifications} onCheckedChange={setNotifications} />
+              <Switch checked={notifications} onCheckedChange={handleNotificationsChange} />
             </div>
             <div className="flex items-center justify-between">
               <div>

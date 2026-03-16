@@ -49,6 +49,8 @@ bool pumpIsOn = false;
 // Manual Override Flags
 bool manualOverride = false;
 bool manualPumpState = false;
+bool isAutoMode = true; // Governs if the background loop runs
+
 unsigned long lastCheckTime = 0;
 const unsigned long CHECK_INTERVAL = 10000; // Check and analyze every 10 seconds
 
@@ -211,13 +213,14 @@ static esp_err_t image_handler(httpd_req_t *req) {
 static esp_err_t status_handler(httpd_req_t *req) {
   char json[256];
   snprintf(json, sizeof(json), 
-    "{\"s1\":%d,\"s2\":%d,\"s3\":%d,\"s4\":%d,\"thresh\":%d,\"dryCount\":%d,\"visionDry\":%s,\"sensorVal\":%d,\"sensorDry\":%s,\"pumpOn\":%s,\"manualOverride\":%s}",
+    "{\"s1\":%d,\"s2\":%d,\"s3\":%d,\"s4\":%d,\"thresh\":%d,\"dryCount\":%d,\"visionDry\":%s,\"sensorVal\":%d,\"sensorDry\":%s,\"pumpOn\":%s,\"manualOverride\":%s,\"isAutoMode\":%s}",
     avgS1, avgS2, avgS3, avgS4, DRY_BRIGHTNESS_THRESHOLD, currentDryCount,
     visionIsDry ? "true" : "false",
     currentSensorVal,
     sensorIsDry ? "true" : "false",
     pumpIsOn ? "true" : "false",
-    manualOverride ? "true" : "false"
+    manualOverride ? "true" : "false",
+    isAutoMode ? "true" : "false"
   );
   
   // CORS Headers for React Integration
@@ -287,6 +290,33 @@ static esp_err_t config_handler(httpd_req_t *req) {
   return httpd_resp_send(req, "{\"success\":true}", 16);
 }
 
+// Handles switching between Auto and Manual system modes
+static esp_err_t mode_handler(httpd_req_t *req) {
+  char* buf;
+  size_t buf_len;
+  char state[32] = {0};
+
+  buf_len = httpd_req_get_url_query_len(req) + 1;
+  if (buf_len > 1) {
+    buf = (char*)malloc(buf_len);
+    if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
+      if (httpd_query_key_value(buf, "auto", state, sizeof(state)) == ESP_OK) {
+        if (strcmp(state, "true") == 0) {
+          isAutoMode = true;
+          manualOverride = false; // Reset temporary overrides when switching back to auto
+        } else if (strcmp(state, "false") == 0) {
+          isAutoMode = false;
+        }
+      }
+    }
+    free(buf);
+  }
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  httpd_resp_send(req, "Mode Updated", HTTPD_RESP_USE_STRLEN);
+  return ESP_OK;
+}
+
 void startCameraServer() {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
   config.server_port = 80;
@@ -296,6 +326,7 @@ void startCameraServer() {
   httpd_uri_t status_uri = { .uri = "/status", .method = HTTP_GET, .handler = status_handler, .user_ctx = NULL };
   httpd_uri_t pump_uri = { .uri = "/pump", .method = HTTP_GET, .handler = pump_handler, .user_ctx = NULL };
   httpd_uri_t config_uri = { .uri = "/config", .method = HTTP_GET, .handler = config_handler, .user_ctx = NULL };
+  httpd_uri_t mode_uri = { .uri = "/mode", .method = HTTP_GET, .handler = mode_handler, .user_ctx = NULL };
 
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &index_uri);
@@ -303,6 +334,7 @@ void startCameraServer() {
     httpd_register_uri_handler(camera_httpd, &status_uri);
     httpd_register_uri_handler(camera_httpd, &pump_uri);
     httpd_register_uri_handler(camera_httpd, &config_uri);
+    httpd_register_uri_handler(camera_httpd, &mode_uri);
     Serial.println("Web Server started successfully!");
   } else {
     Serial.println("Failed to start Web Server");
@@ -448,9 +480,11 @@ void loop() {
     }
   }
 
-  if (millis() - lastCheckTime >= CHECK_INTERVAL) {
-    lastCheckTime = millis();
-    performAnalysis();
+  if (isAutoMode) {
+    if (millis() - lastCheckTime >= CHECK_INTERVAL) {
+      lastCheckTime = millis();
+      performAnalysis();
+    }
   }
   // Delay slightly to yield execution to HTTP Server/WiFi Tasks
   delay(10);
