@@ -11,7 +11,7 @@ const features = [
 
 const FeaturesSection = () => {
   return (
-    <section className="section-padding bg-muted">
+    <section id="features" className="section-padding bg-muted">
       <div className="container-narrow">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

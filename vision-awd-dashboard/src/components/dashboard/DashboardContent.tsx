@@ -106,7 +106,7 @@ const DashboardContent = () => {
       </div>
 
       {/* Main grid */}
-      <div className="grid lg:grid-cols-3 gap-6 align-stretch h-full items-stretch">
+      <div className="grid lg:grid-cols-3 gap-6 items-start">
         <HardwareDashboard onStatusUpdate={handleStatusUpdate} />
 
         {/* Charts */}

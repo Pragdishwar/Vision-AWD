@@ -94,7 +94,7 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
     }, []);
 
     return (
-        <div className="metric-card lg:col-span-1 h-full flex flex-col">
+        <div className="metric-card lg:col-span-1 flex flex-col">
             <div className="flex items-center gap-2 mb-4">
                 <Camera className="h-4 w-4 text-primary" />
                 <h3 className="font-display font-semibold text-foreground">Hardware Link (ESP32-CAM)</h3>
