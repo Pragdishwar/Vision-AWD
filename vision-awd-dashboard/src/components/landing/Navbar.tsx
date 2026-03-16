@@ -10,8 +10,8 @@ const Navbar = () => {
           AgriVision AWD
         </Link>
         <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-          <a href="/#problem" className="hover:text-foreground transition-colors">Problem</a>
-          <a href="/#features" className="hover:text-foreground transition-colors">Features</a>
+          <a href="#problem" className="hover:text-foreground transition-colors">Problem</a>
+          <a href="#features" className="hover:text-foreground transition-colors">Features</a>
           <Link to="/dashboard" className="hover:text-foreground transition-colors">Dashboard</Link>
         </div>
       </div>

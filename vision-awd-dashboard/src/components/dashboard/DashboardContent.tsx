@@ -94,7 +94,7 @@ const DashboardContent = () => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((m) => (
           <div key={m.label} className="metric-card flex items-start gap-4">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-black/40 border border-white/5 shadow-inner ${m.color}`}>
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg bg-black/5 dark:bg-black/40 border border-black/5 dark:border-white/5 shadow-inner ${m.color}`}>
               <m.icon className="h-5 w-5" />
             </div>
             <div>
@@ -117,15 +117,15 @@ const DashboardContent = () => {
               <AreaChart data={moistureData}>
                 <defs>
                   <linearGradient id="moistureGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(152, 55%, 48%)" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="hsl(152, 55%, 48%)" stopOpacity={0} />
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(215, 40%, 18%)" />
-                <XAxis dataKey="time" tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
-                <YAxis tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(215, 50%, 10%)', borderColor: 'hsl(215, 40%, 18%)', color: 'hsl(140, 20%, 95%)', borderRadius: '8px' }} />
-                <Area type="monotone" dataKey="moisture" stroke="hsl(152, 55%, 48%)" fill="url(#moistureGrad)" strokeWidth={2} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="time" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} stroke="hsl(var(--border))" />
+                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} stroke="hsl(var(--border))" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))', borderRadius: '8px' }} />
+                <Area type="monotone" dataKey="moisture" stroke="hsl(var(--primary))" fill="url(#moistureGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -135,11 +135,11 @@ const DashboardContent = () => {
             <h3 className="font-display font-semibold text-foreground mb-4">Brightness Trend</h3>
             <ResponsiveContainer width="100%" height={180}>
               <LineChart data={moistureData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(215, 40%, 18%)" />
-                <XAxis dataKey="time" tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
-                <YAxis tick={{ fill: "hsl(215, 20%, 60%)", fontSize: 11 }} stroke="hsl(215, 40%, 18%)" />
-                <Tooltip contentStyle={{ backgroundColor: 'hsl(215, 50%, 10%)', borderColor: 'hsl(215, 40%, 18%)', color: 'hsl(140, 20%, 95%)', borderRadius: '8px' }} />
-                <Line type="monotone" dataKey="brightness" stroke="hsl(38, 92%, 50%)" strokeWidth={2} dot={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="time" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} stroke="hsl(var(--border))" />
+                <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} stroke="hsl(var(--border))" />
+                <Tooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderColor: 'hsl(var(--border))', color: 'hsl(var(--foreground))', borderRadius: '8px' }} />
+                <Line type="monotone" dataKey="brightness" stroke="hsl(var(--warning))" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -173,9 +173,9 @@ const DashboardContent = () => {
           <h3 className="font-display font-semibold text-foreground mb-4">System Logs</h3>
           <div className="space-y-2 max-h-52 overflow-y-auto pr-2 custom-scrollbar">
             {logs.map((log, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm py-2 border-b border-border/50 last:border-0 hover:bg-white/5 px-2 rounded transition-colors">
+              <div key={i} className="flex items-start gap-3 text-sm py-2 border-b border-border/50 last:border-0 hover:bg-black/5 dark:hover:bg-white/5 px-2 rounded transition-colors">
                 <span className="text-xs text-muted-foreground font-mono whitespace-nowrap mt-0.5">{log.time}</span>
-                <span className={`flex-1 ${log.type === "warning" ? "text-warning drop-shadow-[0_0_4px_rgba(255,165,0,0.5)]" : log.type === "success" ? "text-primary drop-shadow-[0_0_4px_rgba(50,205,50,0.5)]" : "text-foreground"}`}>
+                <span className={`flex-1 ${log.type === "warning" ? "text-warning drop-shadow-[0_0_4px_currentColor]" : log.type === "success" ? "text-primary drop-shadow-[0_0_4px_currentColor]" : "text-foreground"}`}>
                   {log.event}
                 </span>
               </div>

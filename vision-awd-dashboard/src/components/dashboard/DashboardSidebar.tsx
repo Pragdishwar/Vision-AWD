@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Leaf, LayoutDashboard, BarChart3, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -14,14 +15,13 @@ const DashboardSidebar = () => {
 
   return (
     <aside
-      className={`sticky top-0 h-screen flex flex-col dark-gradient text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ${
-        collapsed ? "w-16" : "w-60"
-      }`}
+      className={`sticky top-0 h-screen flex flex-col dark-gradient text-sidebar-foreground border-r border-sidebar-border transition-all duration-300 ${collapsed ? "w-16" : "w-60"
+        }`}
     >
-      <div className="flex items-center gap-2 h-16 px-4 border-b border-sidebar-border">
+      <Link to="/" className="flex items-center gap-2 h-16 px-4 border-b border-sidebar-border hover:opacity-80 transition-opacity">
         <Leaf className="h-6 w-6 text-sidebar-primary flex-shrink-0" />
         {!collapsed && <span className="font-display font-bold text-base">AgriVision</span>}
-      </div>
+      </Link>
 
       <nav className="flex-1 py-4 space-y-1 px-2">
         {navItems.map((item) => (

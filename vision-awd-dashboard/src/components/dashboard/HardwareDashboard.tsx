@@ -11,8 +11,8 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
     const statusRef = useRef<any>(null);
 
     useEffect(() => {
-        // 1. Fetch the logic and sensor data every 2 seconds
-        const interval = setInterval(() => {
+        const fetchData = () => {
+            // 1. Fetch the logic and sensor data
             fetch(`${ESP32_IP}/status`)
                 .then((res) => {
                     if (!res.ok) throw new Error("Network response was not ok");
@@ -82,7 +82,13 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     console.error("Camera feed error:", err);
                     setError("Failed to stream camera feed");
                 });
-        }, 2000);
+        };
+
+        // Fetch immediately on mount
+        fetchData();
+
+        // Then set up the interval to fetch every 2 seconds
+        const interval = setInterval(fetchData, 2000);
 
         return () => clearInterval(interval);
     }, []);
