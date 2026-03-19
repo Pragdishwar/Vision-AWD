@@ -35,8 +35,8 @@ const int DRY_SENSOR_THRESHOLD = 2500;
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-#define RELAY_PIN         12 // Actuator to Water Pump
-#define MOISTURE_PIN      33 // ADC pin for Soil Moisture Sensor
+#define RELAY_PIN         13 // Actuator to Water Pump
+#define MOISTURE_PIN      12 // ADC pin for Soil Moisture Sensor
 
 // Global Application State
 int avgS1 = 0, avgS2 = 0, avgS3 = 0, avgS4 = 0;
