@@ -36,7 +36,7 @@ const int DRY_SENSOR_THRESHOLD = 2500;
 #define PCLK_GPIO_NUM     22
 
 #define RELAY_PIN         13 // Actuator to Water Pump
-#define MOISTURE_PIN      12 // ADC pin for Soil Moisture Sensor
+#define MOISTURE_PIN      15 // ADC pin for Soil Moisture Sensor
 
 // Global Application State
 int avgS1 = 0, avgS2 = 0, avgS3 = 0, avgS4 = 0;
@@ -438,6 +438,15 @@ void setup() {
     return;
   }
   Serial.println("Camera initialized at 160x120 Grayscale.");
+
+  // Static IP so the React dashboard always finds the ESP32 at the same address
+  IPAddress local_IP(10, 187, 13, 177);
+  IPAddress gateway(10, 187, 13, 1);
+  IPAddress subnet(255, 255, 255, 0);
+  IPAddress primaryDNS(8, 8, 8, 8);
+  if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
+    Serial.println("WARNING: Static IP configuration failed — will use DHCP instead.");
+  }
 
   // Connect to WiFi
   WiFi.begin(ssid, password);
