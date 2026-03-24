@@ -37,8 +37,9 @@ const DashboardContent = () => {
 
 
   const handleStatusUpdate = (status: any) => {
-    // Inverse scale the sensor val to a 0-100% moisture reading
-    const moistureValue = Math.max(0, Math.min(100, Math.round(100 - (status.sensorVal / 4095) * 100)));
+    // With the digital sensor fix, sensorVal is now 0 (WET) or 1 (DRY).
+    // Let's map 0 -> 100% moisture, 1 -> 0% moisture.
+    const moistureValue = status.sensorVal === 0 ? 100 : 0;
     const avgBrightness = Math.round((status.s1 + status.s2 + status.s3 + status.s4) / 4);
 
     const timeString = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });

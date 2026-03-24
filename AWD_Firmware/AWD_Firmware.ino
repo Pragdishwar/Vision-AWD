@@ -18,11 +18,11 @@ const int DRY_SENSOR_THRESHOLD = 2500;
 
 // Set to true if your relay module turns ON with a LOW signal (most cheap modules are active-low!)
 // Set to false if your relay turns ON with HIGH signal.
-const bool RELAY_ACTIVE_LOW = false;
+const bool RELAY_ACTIVE_LOW = true;
 
 // Set to false if moisture sensor is NOT yet connected (uses vision-only mode)
 // Set to true once the sensor is wired to GPIO 15
-const bool SENSOR_ENABLED = false;
+const bool SENSOR_ENABLED = true;
 // ==========================================================
 
 // Pin Definitions for standard AI-Thinker ESP32-CAM
@@ -43,7 +43,7 @@ const bool SENSOR_ENABLED = false;
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-#define RELAY_PIN         13 // Actuator to Water Pump
+#define RELAY_PIN         14 // GPIO 13 — SD_DATA3, free with no SD card, camera-safe
 #define MOISTURE_PIN      15 // ADC pin for Soil Moisture Sensor
 
 // Global Application State
@@ -410,9 +410,13 @@ void performAnalysis() {
   // Minimum of 2 'Dry' quadrants required to classify total region as DRY
   visionIsDry = (currentDryCount >= 2);
   
-  // Also evaluate Physical Soil Moisture Sensor
-  currentSensorVal = analogRead(MOISTURE_PIN);
-  sensorIsDry = (currentSensorVal > DRY_SENSOR_THRESHOLD);
+  // Also evaluate Physical Soil Moisture Sensor (using Digital Out pin because analogRead fails when WiFi is on)
+  currentSensorVal = digitalRead(MOISTURE_PIN);
+  
+  // For most digital soil sensors: 
+  // LOW (0) means WET (soil conducts electricity)
+  // HIGH (1) means DRY (soil does not conduct)
+  sensorIsDry = (currentSensorVal == HIGH);
   
   // Auto mode: vision-only if sensor not connected, otherwise both must agree
   if (manualOverride) {
@@ -443,6 +447,14 @@ void setup() {
 
   pinMode(RELAY_PIN, OUTPUT);
   setRelay(false); // Pump OFF initially
+
+  // Startup blink test: relay should click 3 times to confirm GPIO is working
+  Serial.println(">> Relay self-test: listen for 3 clicks...");
+  for (int i = 0; i < 3; i++) {
+    setRelay(true);  delay(300);
+    setRelay(false); delay(300);
+  }
+  Serial.println(">> Relay self-test done.");
   pinMode(MOISTURE_PIN, INPUT);
 
   // Initialize ESP32-CAM (AI-Thinker model)

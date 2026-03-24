@@ -15,7 +15,7 @@ const DashboardSettings = () => {
     return document.documentElement.classList.contains("dark");
   });
 
-  // Fetch initial auto mode state from ESP32
+  // Fetch initial auto mode state and threshold from ESP32
   useEffect(() => {
     fetch(`${ESP32_IP}/status`)
       .then(res => res.json())
@@ -23,8 +23,11 @@ const DashboardSettings = () => {
         if (data.isAutoMode !== undefined) {
           setAutoMode(data.isAutoMode);
         }
+        if (data.thresh !== undefined) {
+          setCalibration([data.thresh]);
+        }
       })
-      .catch(err => console.error("Could not fetch initial auto mode:", err));
+      .catch(err => console.error("Could not fetch initial status:", err));
   }, []);
 
   useEffect(() => {
@@ -35,8 +38,8 @@ const DashboardSettings = () => {
     }
   }, [isDarkMode]);
 
-  const handleThresholdChange = async (val: number[]) => {
-    setCalibration(val);
+  // Called only when drag ends (onValueCommit) to avoid flooding ESP32 server
+  const handleThresholdCommit = async (val: number[]) => {
     try {
       await fetch(`${ESP32_IP}/config?threshold=${val[0]}`);
     } catch (err) {
@@ -111,7 +114,7 @@ const DashboardSettings = () => {
               <p className="text-sm text-muted-foreground">Dryness detection sensitivity (0-255 grayscale)</p>
               <span className="text-sm font-semibold text-primary">{calibration[0]}</span>
             </div>
-            <Slider value={calibration} onValueChange={handleThresholdChange} min={0} max={255} step={1} />
+            <Slider value={calibration} onValueChange={setCalibration} onValueCommit={handleThresholdCommit} min={0} max={255} step={1} />
           </div>
         </div>
       </div>
