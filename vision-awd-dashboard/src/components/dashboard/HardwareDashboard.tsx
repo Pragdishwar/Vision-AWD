@@ -151,7 +151,7 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     <div className="flex justify-between border-b pb-2">
                         <span className="text-muted-foreground flex items-center gap-1"><Sun className="w-3 h-3" /> Vision:</span>
                         <span className={`font-semibold ${status.visionDry ? "text-amber-500" : "text-green-500"}`}>
-                            {status.visionDry ? "DRY" : "WET"} ({status.dryCount}/4)
+                            {status.visionDry ? `DRY (${status.dryCount}/4)` : `WET (${4 - status.dryCount}/4)`}
                         </span>
                     </div>
 
