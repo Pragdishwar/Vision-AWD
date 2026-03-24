@@ -5,7 +5,7 @@
 // ==========================================================
 // CONFIGURATION (Update these!)
 // ==========================================================
-const char* ssid = "CITAR";
+const char* ssid = "PRAS";
 const char* password = "CITAR@123";
 
 // Vision Threshold (0-255). Dry soil is usually brighter in Grayscale.
@@ -14,7 +14,11 @@ uint8_t DRY_BRIGHTNESS_THRESHOLD = 150;
 
 // Moisture Sensor Threshold (0-4095 for ESP32 ADC)
 // Calibrate depending on your specific analog sensor.
-const int DRY_SENSOR_THRESHOLD = 2500; 
+const int DRY_SENSOR_THRESHOLD = 2500;
+
+// Set to true if your relay module turns ON with a LOW signal (most cheap modules are active-low!)
+// Set to false if your relay turns ON with HIGH signal.
+const bool RELAY_ACTIVE_LOW = true;
 // ==========================================================
 
 // Pin Definitions for standard AI-Thinker ESP32-CAM
@@ -234,6 +238,12 @@ static esp_err_t status_handler(httpd_req_t *req) {
   return httpd_resp_send(req, json, strlen(json));
 }
 
+// Helper: writes relay respecting active-low vs active-high wiring
+void setRelay(bool on) {
+  digitalWrite(RELAY_PIN, on ? (RELAY_ACTIVE_LOW ? LOW : HIGH)
+                             : (RELAY_ACTIVE_LOW ? HIGH : LOW));
+}
+
 // Handles manual pump overrides
 static esp_err_t pump_handler(httpd_req_t *req) {
   char* buf;
@@ -248,11 +258,14 @@ static esp_err_t pump_handler(httpd_req_t *req) {
         if (strcmp(state, "on") == 0) {
           manualOverride = true;
           manualPumpState = true;
+          Serial.println("[PUMP] Dashboard command: FORCE ON");
         } else if (strcmp(state, "off") == 0) {
           manualOverride = true;
           manualPumpState = false;
+          Serial.println("[PUMP] Dashboard command: FORCE OFF");
         } else if (strcmp(state, "auto") == 0) {
           manualOverride = false;
+          Serial.println("[PUMP] Dashboard command: AUTO mode restored");
         }
       }
     }
@@ -265,7 +278,9 @@ static esp_err_t pump_handler(httpd_req_t *req) {
   } else {
       pumpIsOn = (visionIsDry && sensorIsDry);
   }
-  digitalWrite(RELAY_PIN, pumpIsOn ? HIGH : LOW);
+  setRelay(pumpIsOn);
+  Serial.printf("[PUMP] Relay pin %d -> %s (RELAY_ACTIVE_LOW=%s)\n",
+    RELAY_PIN, pumpIsOn ? "ON" : "OFF", RELAY_ACTIVE_LOW ? "true" : "false");
 
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   httpd_resp_set_type(req, "application/json");
@@ -402,7 +417,7 @@ void performAnalysis() {
       pumpIsOn = (visionIsDry && sensorIsDry);
   }
 
-  digitalWrite(RELAY_PIN, pumpIsOn ? HIGH : LOW);
+  setRelay(pumpIsOn);
 
   // Print results to Serial Monitor
   Serial.println("=== Analysis Update ===");
@@ -421,7 +436,7 @@ void setup() {
   Serial.println("\n--- Starting AWD Smart Irrigation ---");
 
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, LOW); // Pump OFF initially
+  setRelay(false); // Pump OFF initially
   pinMode(MOISTURE_PIN, INPUT);
 
   // Initialize ESP32-CAM (AI-Thinker model)
