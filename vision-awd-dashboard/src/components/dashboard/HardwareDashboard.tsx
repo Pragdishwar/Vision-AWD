@@ -158,7 +158,7 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     <div className="flex justify-between border-b pb-2">
                         <span className="text-muted-foreground flex items-center gap-1"><Droplets className="w-3 h-3" /> Sensor:</span>
                         <span className={`font-semibold ${status.sensorDry ? "text-amber-500" : "text-green-500"}`}>
-                            {status.sensorDry ? "DRY" : "WET"} ({status.sensorVal})
+                            {status.sensorDry ? "DRY" : "WET"}
                         </span>
                     </div>
 
