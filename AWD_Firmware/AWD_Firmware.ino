@@ -192,8 +192,13 @@ static esp_err_t index_handler(httpd_req_t *req) {
 
 // Serves the raw Grayscale array directly from the Camera Framebuffer
 static esp_err_t image_handler(httpd_req_t *req) {
-  camera_fb_t *fb = esp_camera_fb_get();
+  camera_fb_t *fb = NULL;
+  for (int i = 0; i < 3 && fb == NULL; i++) {
+    fb = esp_camera_fb_get();
+    if (!fb) delay(50);
+  }
   if (!fb) {
+    Serial.println("ERROR: Camera framebuffer unavailable after 3 retries.");
     httpd_resp_send_500(req);
     return ESP_FAIL;
   }

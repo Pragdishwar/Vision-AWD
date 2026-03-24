@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { Camera, Droplets, Sun, Power, AlertTriangle } from "lucide-react";
+import { Camera, Droplets, Sun, Power, AlertTriangle, Zap } from "lucide-react";
 
 // The local IP of the ESP32 on the network
 export const ESP32_IP = "http://10.187.13.177";
@@ -7,6 +7,7 @@ export const ESP32_IP = "http://10.187.13.177";
 export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status: any) => void }) => {
     const [status, setStatus] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
+    const [pumpLoading, setPumpLoading] = useState(false);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const statusRef = useRef<any>(null);
 
@@ -93,6 +94,25 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
         return () => clearInterval(interval);
     }, []);
 
+    const sendPumpCommand = (state: "on" | "off" | "auto") => {
+        setPumpLoading(true);
+        fetch(`${ESP32_IP}/pump?state=${state}`)
+            .then((res) => {
+                if (!res.ok) throw new Error("Pump command failed");
+                return res.json();
+            })
+            .then(() => {
+                // Optimistically update local status so UI reflects instantly
+                setStatus((prev: any) => prev ? {
+                    ...prev,
+                    manualOverride: state !== "auto",
+                    pumpOn: state === "on" ? true : state === "off" ? false : prev.pumpOn,
+                } : prev);
+            })
+            .catch((err) => console.error("Pump command error:", err))
+            .finally(() => setPumpLoading(false));
+    };
+
     return (
         <div className="metric-card lg:col-span-1 flex flex-col">
             <div className="flex items-center gap-2 mb-4">
@@ -140,11 +160,55 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                         </span>
                     </div>
 
-                    <div className="flex justify-between pt-1">
+                    <div className="flex justify-between border-b pb-2">
                         <span className="text-muted-foreground flex items-center gap-1"><Power className="w-3 h-3" /> Relay:</span>
                         <span className={`font-semibold ${status.pumpOn ? "text-primary" : "text-muted-foreground"}`}>
                             {status.pumpOn ? "ON (IRRIGATING)" : "OFF"}
+                            {status.manualOverride && <span className="ml-1 text-xs text-amber-400">[Manual]</span>}
                         </span>
+                    </div>
+
+                    {/* Manual Pump Controls */}
+                    <div className="pt-1">
+                        <div className="flex items-center gap-1 text-muted-foreground mb-2">
+                            <Zap className="w-3 h-3" />
+                            <span className="text-xs font-medium uppercase tracking-wide">Pump Control</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                            <button
+                                onClick={() => sendPumpCommand("on")}
+                                disabled={pumpLoading}
+                                className={`py-1.5 px-2 rounded text-xs font-semibold transition-all border
+                                    ${status.manualOverride && status.pumpOn
+                                        ? "bg-primary text-primary-foreground border-primary"
+                                        : "bg-transparent text-muted-foreground border-border hover:border-primary hover:text-primary"
+                                    } disabled:opacity-50`}
+                            >
+                                Force ON
+                            </button>
+                            <button
+                                onClick={() => sendPumpCommand("off")}
+                                disabled={pumpLoading}
+                                className={`py-1.5 px-2 rounded text-xs font-semibold transition-all border
+                                    ${status.manualOverride && !status.pumpOn
+                                        ? "bg-destructive text-destructive-foreground border-destructive"
+                                        : "bg-transparent text-muted-foreground border-border hover:border-destructive hover:text-destructive"
+                                    } disabled:opacity-50`}
+                            >
+                                Force OFF
+                            </button>
+                            <button
+                                onClick={() => sendPumpCommand("auto")}
+                                disabled={pumpLoading}
+                                className={`py-1.5 px-2 rounded text-xs font-semibold transition-all border
+                                    ${!status.manualOverride
+                                        ? "bg-green-600 text-white border-green-600"
+                                        : "bg-transparent text-muted-foreground border-border hover:border-green-500 hover:text-green-500"
+                                    } disabled:opacity-50`}
+                            >
+                                Auto
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
