@@ -5,7 +5,7 @@
 // ==========================================================
 // CONFIGURATION (Update these!)
 // ==========================================================
-const char* ssid = "PRAS";
+const char* ssid = "Pras";
 const char* password = "CITAR@123";
 
 // Vision Threshold (0-255). Dry soil is usually brighter in Grayscale.
