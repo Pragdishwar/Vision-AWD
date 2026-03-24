@@ -18,7 +18,11 @@ const int DRY_SENSOR_THRESHOLD = 2500;
 
 // Set to true if your relay module turns ON with a LOW signal (most cheap modules are active-low!)
 // Set to false if your relay turns ON with HIGH signal.
-const bool RELAY_ACTIVE_LOW = true;
+const bool RELAY_ACTIVE_LOW = false;
+
+// Set to false if moisture sensor is NOT yet connected (uses vision-only mode)
+// Set to true once the sensor is wired to GPIO 15
+const bool SENSOR_ENABLED = false;
 // ==========================================================
 
 // Pin Definitions for standard AI-Thinker ESP32-CAM
@@ -410,11 +414,13 @@ void performAnalysis() {
   currentSensorVal = analogRead(MOISTURE_PIN);
   sensorIsDry = (currentSensorVal > DRY_SENSOR_THRESHOLD);
   
-  // Both systems must agree the soil is dry to start pumping water
+  // Auto mode: vision-only if sensor not connected, otherwise both must agree
   if (manualOverride) {
       pumpIsOn = manualPumpState;
+  } else if (SENSOR_ENABLED) {
+      pumpIsOn = (visionIsDry && sensorIsDry); // Both must agree
   } else {
-      pumpIsOn = (visionIsDry && sensorIsDry);
+      pumpIsOn = visionIsDry; // Vision-only mode (sensor not connected)
   }
 
   setRelay(pumpIsOn);

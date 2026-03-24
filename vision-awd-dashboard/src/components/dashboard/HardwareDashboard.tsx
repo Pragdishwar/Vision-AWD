@@ -12,8 +12,7 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
     const statusRef = useRef<any>(null);
 
     useEffect(() => {
-        const fetchData = () => {
-            // 1. Fetch the logic and sensor data
+        const fetchStatus = () => {
             fetch(`${ESP32_IP}/status`)
                 .then((res) => {
                     if (!res.ok) throw new Error("Network response was not ok");
@@ -29,8 +28,9 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     console.error("Hardware disconnected:", err);
                     setError("Failed to connect to ESP32 Hardware");
                 });
+        };
 
-            // 2. Fetch the raw camera Grayscale array and draw it to Canvas
+        const fetchImage = () => {
             fetch(`${ESP32_IP}/image`)
                 .then((res) => {
                     if (!res.ok) throw new Error("Network response was not ok");
@@ -76,22 +76,24 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                         drawQuad(0, 60, s3, "S3");
                         drawQuad(80, 60, s4, "S4");
                     }
-
-                    setError(null);
                 })
                 .catch((err) => {
                     console.error("Camera feed error:", err);
-                    setError("Failed to stream camera feed");
                 });
         };
 
         // Fetch immediately on mount
-        fetchData();
+        fetchStatus();
+        fetchImage();
 
-        // Then set up the interval to fetch every 2 seconds
-        const interval = setInterval(fetchData, 2000);
+        // Status refreshes every 2s (lightweight), image every 10s (frees framebuffer for analysis)
+        const statusInterval = setInterval(fetchStatus, 2000);
+        const imageInterval = setInterval(fetchImage, 10000);
 
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(statusInterval);
+            clearInterval(imageInterval);
+        };
     }, []);
 
     const sendPumpCommand = (state: "on" | "off" | "auto") => {
