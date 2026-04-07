@@ -200,6 +200,11 @@ static esp_err_t index_handler(httpd_req_t *req) {
 
 // Serves the raw Grayscale array directly from the Camera Framebuffer
 static esp_err_t image_handler(httpd_req_t *req) {
+  if (!camera_initialized) {
+    httpd_resp_send_500(req);
+    return ESP_FAIL;
+  }
+  
   camera_fb_t *fb = NULL;
   for (int i = 0; i < 3 && fb == NULL; i++) {
     fb = esp_camera_fb_get();
@@ -369,47 +374,51 @@ void startCameraServer() {
 // Core Logic & Analysis function
 // ===========================================
 void performAnalysis() {
-  camera_fb_t *fb = esp_camera_fb_get();
-  if (!fb) {
-    Serial.println("Camera capture failed during analysis");
-    return;
-  }
+  if (camera_initialized) {
+    camera_fb_t *fb = esp_camera_fb_get();
+    if (fb) {
+      // Segment brightness summations
+      long sumSeg1 = 0, sumSeg2 = 0, sumSeg3 = 0, sumSeg4 = 0;
+      int countPerSeg = (160 / 2) * (120 / 2); // 80 * 60 = 4800 pixels per quadrant
 
-  // Segment brightness summations
-  long sumSeg1 = 0, sumSeg2 = 0, sumSeg3 = 0, sumSeg4 = 0;
-  int countPerSeg = (160 / 2) * (120 / 2); // 80 * 60 = 4800 pixels per quadrant
+      for (int y = 0; y < 120; y++) {
+        for (int x = 0; x < 160; x++) {
+          int pixelIndex = y * 160 + x;
+          uint8_t brightness = fb->buf[pixelIndex];
 
-  for (int y = 0; y < 120; y++) {
-    for (int x = 0; x < 160; x++) {
-      int pixelIndex = y * 160 + x;
-      uint8_t brightness = fb->buf[pixelIndex];
+          if (x < 80 && y < 60) sumSeg1 += brightness;
+          else if (x >= 80 && y < 60) sumSeg2 += brightness;
+          else if (x < 80 && y >= 60) sumSeg3 += brightness;
+          else if (x >= 80 && y >= 60) sumSeg4 += brightness;
+        }
+      }
+      
+      // Return the memory buffer back to the camera driver
+      esp_camera_fb_return(fb);
 
-      if (x < 80 && y < 60) sumSeg1 += brightness;
-      else if (x >= 80 && y < 60) sumSeg2 += brightness;
-      else if (x < 80 && y >= 60) sumSeg3 += brightness;
-      else if (x >= 80 && y >= 60) sumSeg4 += brightness;
+      // Compute Averages
+      avgS1 = sumSeg1 / countPerSeg;
+      avgS2 = sumSeg2 / countPerSeg;
+      avgS3 = sumSeg3 / countPerSeg;
+      avgS4 = sumSeg4 / countPerSeg;
+
+      // Evaluate against Threshold
+      currentDryCount = 0;
+      if (avgS1 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
+      if (avgS2 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
+      if (avgS3 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
+      if (avgS4 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
+
+      // Minimum of 2 'Dry' quadrants required to classify total region as DRY
+      visionIsDry = (currentDryCount >= 2);
+    } else {
+      Serial.println("Camera capture failed during analysis");
+      visionIsDry = false;
     }
+  } else {
+    visionIsDry = false;
   }
-  
-  // Return the memory buffer back to the camera driver
-  esp_camera_fb_return(fb);
 
-  // Compute Averages
-  avgS1 = sumSeg1 / countPerSeg;
-  avgS2 = sumSeg2 / countPerSeg;
-  avgS3 = sumSeg3 / countPerSeg;
-  avgS4 = sumSeg4 / countPerSeg;
-
-  // Evaluate against Threshold
-  currentDryCount = 0;
-  if (avgS1 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
-  if (avgS2 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
-  if (avgS3 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
-  if (avgS4 > DRY_BRIGHTNESS_THRESHOLD) currentDryCount++;
-
-  // Minimum of 2 'Dry' quadrants required to classify total region as DRY
-  visionIsDry = (currentDryCount >= 2);
-  
   // Also evaluate Physical Soil Moisture Sensor (using Digital Out pin because analogRead fails when WiFi is on)
   currentSensorVal = digitalRead(MOISTURE_PIN);
   
@@ -422,9 +431,13 @@ void performAnalysis() {
   if (manualOverride) {
       pumpIsOn = manualPumpState;
   } else if (SENSOR_ENABLED) {
-      pumpIsOn = (visionIsDry && sensorIsDry); // Both must agree
+      if (camera_initialized) {
+          pumpIsOn = (visionIsDry && sensorIsDry); // Both must agree
+      } else {
+          pumpIsOn = sensorIsDry; // Fallback to sensor only if camera is dead
+      }
   } else {
-      pumpIsOn = visionIsDry; // Vision-only mode (sensor not connected)
+      pumpIsOn = visionIsDry; // Vision-only mode
   }
 
   setRelay(pumpIsOn);
@@ -437,6 +450,8 @@ void performAnalysis() {
   Serial.printf("Pump Output: %s\n", pumpIsOn ? "ON" : "OFF");
   Serial.println("=======================");
 }
+
+bool camera_initialized = false;
 
 // ===========================================
 // Lifecycle methods
@@ -472,10 +487,11 @@ void setup() {
   config.fb_count = 1;
 
   if (esp_camera_init(&config) != ESP_OK) {
-    Serial.println("FAIL: Camera init failed! Check connections or power supply.");
-    return;
+    Serial.println("FAIL: Camera init failed! Check connections or power supply. Continuing in Sensor-only mode...");
+  } else {
+    Serial.println("Camera initialized at 160x120 Grayscale.");
+    camera_initialized = true;
   }
-  Serial.println("Camera initialized at 160x120 Grayscale.");
 
   // Static IP so the React dashboard always finds the ESP32 at the same address
   IPAddress local_IP(10, 187, 13, 177);
