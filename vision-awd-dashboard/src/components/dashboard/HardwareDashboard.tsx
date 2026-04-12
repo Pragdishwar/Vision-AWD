@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Camera, Droplets, Sun, Power, AlertTriangle, Zap } from "lucide-react";
 
+export const ESP32_IP = "http://10.187.13.177";
+
 export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status: any) => void }) => {
-    const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem("esp32_ip") || "http://10.187.13.177");
+    const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem("esp32_ip") || ESP32_IP);
     const [status, setStatus] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [pumpLoading, setPumpLoading] = useState(false);
