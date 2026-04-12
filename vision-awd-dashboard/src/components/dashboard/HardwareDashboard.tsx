@@ -140,8 +140,17 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     style={{ imageRendering: "pixelated" }}
                 />
                 {error && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-xs text-center p-4">
-                        {error}. Make sure ESP32 is on the network ({ESP32_IP}).
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white text-xs text-center p-4">
+                        <AlertTriangle className="h-8 w-8 text-warning mb-2" />
+                        <p className="font-semibold mb-1">{error}</p>
+                        <p className="text-[10px] opacity-80 mb-2">Target: {ESP32_IP}</p>
+                        {window.location.protocol === "https:" && (
+                            <div className="bg-warning/20 border border-warning/30 p-2 rounded text-[9px] leading-tight">
+                                <span className="font-bold text-warning">HTTPS DETECTED:</span><br/>
+                                Click the Lock icon in browser bar → Site Settings → 
+                                Set <b>Insecure content</b> to <b>Allow</b> to connect to local hardware.
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

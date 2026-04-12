@@ -22,7 +22,7 @@ const bool RELAY_ACTIVE_LOW = true;
 
 // Set to false if moisture sensor is NOT yet connected (uses vision-only mode)
 // Set to true once the sensor is wired to GPIO 15
-const bool SENSOR_ENABLED = true;
+const bool SENSOR_ENABLED = false;
 // ==========================================================
 
 // Pin Definitions for standard AI-Thinker ESP32-CAM
@@ -43,7 +43,7 @@ const bool SENSOR_ENABLED = true;
 #define HREF_GPIO_NUM     23
 #define PCLK_GPIO_NUM     22
 
-#define RELAY_PIN         14 // GPIO 13 — SD_DATA3, free with no SD card, camera-safe
+#define RELAY_PIN         2 // GPIO 2 — SD_DATA3, free with no SD card, camera-safe
 #define MOISTURE_PIN      15 // ADC pin for Soil Moisture Sensor
 
 // Global Application State
@@ -58,6 +58,7 @@ bool pumpIsOn = false;
 bool manualOverride = false;
 bool manualPumpState = false;
 bool isAutoMode = true; // Governs if the background loop runs
+bool camera_initialized = false;
 
 unsigned long lastCheckTime = 0;
 const unsigned long CHECK_INTERVAL = 10000; // Check and analyze every 10 seconds
@@ -192,14 +193,36 @@ const char PROGMEM INDEX_HTML[] = R"rawliteral(
 // Web Server Request Handlers
 // ===========================================
 
+// Helper to set all mandatory CORS headers
+void set_cors_headers(httpd_req_t *req) {
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+}
+
+// Global Pre-flight / OPTIONS handler for browser checks
+static esp_err_t options_handler(httpd_req_t *req) {
+    set_cors_headers(req);
+    httpd_resp_send(req, NULL, 0);
+    return ESP_OK;
+}
+
+// Simple ping endpoint for health checks
+static esp_err_t ping_handler(httpd_req_t *req) {
+    set_cors_headers(req);
+    return httpd_resp_send(req, "{\"status\":\"online\"}", 19);
+}
+
 // Serves the HTML frontend interface
 static esp_err_t index_handler(httpd_req_t *req) {
-  httpd_resp_set_type(req, "text/html");
-  return httpd_resp_send(req, INDEX_HTML, strlen(INDEX_HTML));
+    set_cors_headers(req);
+    httpd_resp_set_type(req, "text/html");
+    return httpd_resp_send(req, INDEX_HTML, strlen(INDEX_HTML));
 }
 
 // Serves the raw Grayscale array directly from the Camera Framebuffer
 static esp_err_t image_handler(httpd_req_t *req) {
+  set_cors_headers(req);
   if (!camera_initialized) {
     httpd_resp_send_500(req);
     return ESP_FAIL;
@@ -215,9 +238,6 @@ static esp_err_t image_handler(httpd_req_t *req) {
     httpd_resp_send_500(req);
     return ESP_FAIL;
   }
-  
-  // CORS Headers for React Integration
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   
   // Set binary content type (not a JPEG, just raw bytes)
   httpd_resp_set_type(req, "application/octet-stream");
@@ -241,8 +261,7 @@ static esp_err_t status_handler(httpd_req_t *req) {
     isAutoMode ? "true" : "false"
   );
   
-  // CORS Headers for React Integration
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  set_cors_headers(req);
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, json, strlen(json));
 }
@@ -291,7 +310,7 @@ static esp_err_t pump_handler(httpd_req_t *req) {
   Serial.printf("[PUMP] Relay pin %d -> %s (RELAY_ACTIVE_LOW=%s)\n",
     RELAY_PIN, pumpIsOn ? "ON" : "OFF", RELAY_ACTIVE_LOW ? "true" : "false");
 
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  set_cors_headers(req);
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, "{\"success\":true}", 16);
 }
@@ -314,7 +333,7 @@ static esp_err_t config_handler(httpd_req_t *req) {
     free(buf);
   }
   
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  set_cors_headers(req);
   httpd_resp_set_type(req, "application/json");
   return httpd_resp_send(req, "{\"success\":true}", 16);
 }
@@ -341,7 +360,7 @@ static esp_err_t mode_handler(httpd_req_t *req) {
     free(buf);
   }
 
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  set_cors_headers(req);
   httpd_resp_send(req, "Mode Updated", HTTPD_RESP_USE_STRLEN);
   return ESP_OK;
 }
@@ -356,6 +375,14 @@ void startCameraServer() {
   httpd_uri_t pump_uri = { .uri = "/pump", .method = HTTP_GET, .handler = pump_handler, .user_ctx = NULL };
   httpd_uri_t config_uri = { .uri = "/config", .method = HTTP_GET, .handler = config_handler, .user_ctx = NULL };
   httpd_uri_t mode_uri = { .uri = "/mode", .method = HTTP_GET, .handler = mode_handler, .user_ctx = NULL };
+  httpd_uri_t ping_uri = { .uri = "/ping", .method = HTTP_GET, .handler = ping_handler, .user_ctx = NULL };
+
+  // Pre-flight OPTIONS registrations
+  httpd_uri_t opt_image = { .uri = "/image", .method = HTTP_OPTIONS, .handler = options_handler, .user_ctx = NULL };
+  httpd_uri_t opt_status = { .uri = "/status", .method = HTTP_OPTIONS, .handler = options_handler, .user_ctx = NULL };
+  httpd_uri_t opt_pump = { .uri = "/pump", .method = HTTP_OPTIONS, .handler = options_handler, .user_ctx = NULL };
+  httpd_uri_t opt_config = { .uri = "/config", .method = HTTP_OPTIONS, .handler = options_handler, .user_ctx = NULL };
+  httpd_uri_t opt_mode = { .uri = "/mode", .method = HTTP_OPTIONS, .handler = options_handler, .user_ctx = NULL };
 
   if (httpd_start(&camera_httpd, &config) == ESP_OK) {
     httpd_register_uri_handler(camera_httpd, &index_uri);
@@ -364,6 +391,15 @@ void startCameraServer() {
     httpd_register_uri_handler(camera_httpd, &pump_uri);
     httpd_register_uri_handler(camera_httpd, &config_uri);
     httpd_register_uri_handler(camera_httpd, &mode_uri);
+    httpd_register_uri_handler(camera_httpd, &ping_uri);
+    
+    // Options
+    httpd_register_uri_handler(camera_httpd, &opt_image);
+    httpd_register_uri_handler(camera_httpd, &opt_status);
+    httpd_register_uri_handler(camera_httpd, &opt_pump);
+    httpd_register_uri_handler(camera_httpd, &opt_config);
+    httpd_register_uri_handler(camera_httpd, &opt_mode);
+
     Serial.println("Web Server started successfully!");
   } else {
     Serial.println("Failed to start Web Server");
@@ -375,7 +411,13 @@ void startCameraServer() {
 // ===========================================
 void performAnalysis() {
   if (camera_initialized) {
-    camera_fb_t *fb = esp_camera_fb_get();
+    camera_fb_t *fb = NULL;
+    // Retry capturing frame 3 times to prevent single-frame glitches
+    for (int i = 0; i < 3 && fb == NULL; i++) {
+      fb = esp_camera_fb_get();
+      if (!fb) delay(50);
+    }
+    
     if (fb) {
       // Segment brightness summations
       long sumSeg1 = 0, sumSeg2 = 0, sumSeg3 = 0, sumSeg4 = 0;
@@ -451,8 +493,6 @@ void performAnalysis() {
   Serial.println("=======================");
 }
 
-bool camera_initialized = false;
-
 // ===========================================
 // Lifecycle methods
 // ===========================================
@@ -480,7 +520,7 @@ void setup() {
   config.pin_d4 = Y6_GPIO_NUM; config.pin_d5 = Y7_GPIO_NUM; config.pin_d6 = Y8_GPIO_NUM; config.pin_d7 = Y9_GPIO_NUM;
   config.pin_xclk = XCLK_GPIO_NUM; config.pin_pclk = PCLK_GPIO_NUM; config.pin_vsync = VSYNC_GPIO_NUM; config.pin_href = HREF_GPIO_NUM;
   config.pin_sccb_sda = SIOD_GPIO_NUM; config.pin_sccb_scl = SIOC_GPIO_NUM; config.pin_pwdn = PWDN_GPIO_NUM; config.pin_reset = RESET_GPIO_NUM;
-  config.xclk_freq_hz = 20000000;
+  config.xclk_freq_hz = 10000000; // Lower to 10MHz for better stability on clone boards
   config.frame_size = FRAMESIZE_QQVGA; // 160x120 resolution
   config.pixel_format = PIXFORMAT_GRAYSCALE; // Direct access to brightness, very fast
   config.jpeg_quality = 12; // Unused for grayscale, but driver requires a value
