@@ -1,3 +1,4 @@
+#include <Arduino.h>
 #include "esp_camera.h"
 #include <WiFi.h>
 #include "esp_http_server.h"
@@ -45,6 +46,7 @@ const bool SENSOR_ENABLED = false;
 
 #define RELAY_PIN         2 // GPIO 2 — SD_DATA3, free with no SD card, camera-safe
 #define MOISTURE_PIN      15 // ADC pin for Soil Moisture Sensor
+#define LED_PIN           33 // GPIO 33 - Built-in Red LED (Active LOW)
 
 // Global Application State
 int avgS1 = 0, avgS2 = 0, avgS3 = 0, avgS4 = 0;
@@ -271,6 +273,11 @@ static esp_err_t status_handler(httpd_req_t *req) {
 void setRelay(bool on) {
   digitalWrite(RELAY_PIN, on ? (RELAY_ACTIVE_LOW ? LOW : HIGH)
                              : (RELAY_ACTIVE_LOW ? HIGH : LOW));
+}
+
+// Helper: writes onboard LED (Active LOW)
+void setStatusLED(bool on) {
+  digitalWrite(LED_PIN, on ? LOW : HIGH);
 }
 
 // Handles manual pump overrides
@@ -502,7 +509,9 @@ void setup() {
   Serial.println("\n--- Starting AWD Smart Irrigation ---");
 
   pinMode(RELAY_PIN, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
   setRelay(false); // Pump OFF initially
+  setStatusLED(false); // LED OFF initially
 
   // Startup blink test: relay should click 3 times to confirm GPIO is working
   Serial.println(">> Relay self-test: listen for 3 clicks...");
@@ -534,7 +543,11 @@ void setup() {
     camera_initialized = true;
   }
 
-  // Static IP so the React dashboard always finds the ESP32 at the same address
+  /* 
+     DHCP ENABLED: Commented out static IP config to allow mobile hotspots 
+     to assign an IP address automatically. 
+  */
+  /*
   IPAddress local_IP(10, 187, 13, 177);
   IPAddress gateway(10, 187, 13, 1);
   IPAddress subnet(255, 255, 255, 0);
@@ -542,24 +555,37 @@ void setup() {
   if (!WiFi.config(local_IP, gateway, subnet, primaryDNS)) {
     Serial.println("WARNING: Static IP configuration failed — will use DHCP instead.");
   }
+  */
 
   // Connect to WiFi
   WiFi.begin(ssid, password);
   Serial.print("Connecting to WiFi");
   int retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < 20) {
-    delay(500);
+  while (WiFi.status() != WL_CONNECTED && retries < 40) {
+    setStatusLED(true);
+    delay(250);
+    setStatusLED(false);
+    delay(250);
     Serial.print(".");
     retries++;
   }
   
   if (WiFi.status() == WL_CONNECTED) {
+    setStatusLED(true); // Solid ON when connected
     Serial.println("\nSUCCESS: WiFi Connected!");
-    Serial.print(">>> Access Dashboard at: http://");
+    Serial.println("-------------------------");
+    Serial.print("Local IP: ");
     Serial.println(WiFi.localIP());
+    Serial.print("Gateway:  ");
+    Serial.println(WiFi.gatewayIP());
+    Serial.println("-------------------------");
     startCameraServer();
   } else {
     Serial.println("\nWARNING: WiFi connection failed. Proceeding automatically without web dashboard.");
+    // Fast blink 5 times for error
+    for(int i=0; i<5; i++) {
+       setStatusLED(true); delay(100); setStatusLED(false); delay(100);
+    }
   }
 
   // Force first analysis immediately

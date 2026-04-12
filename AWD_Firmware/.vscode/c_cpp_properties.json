@@ -1,0 +1,28 @@
+{
+    "configurations": [
+        {
+            "name": "ESP32",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/pragd/AppData/Local/Arduino15/packages/esp32/hardware/esp32/3.3.7/cores/esp32",
+                "C:/Users/pragd/AppData/Local/Arduino15/packages/esp32/hardware/esp32/3.3.7/variants/esp32",
+                "C:/Users/pragd/AppData/Local/Arduino15/packages/esp32/hardware/esp32/3.3.7/libraries/**",
+                "C:/Users/pragd/AppData/Local/Arduino15/packages/esp32/tools/esp32-libs/3.3.7/include/espressif__esp32-camera/driver/include"
+            ],
+            "defines": [
+                "ESP32",
+                "ARDUINO=10800",
+                "ARDUINO_ARCH_ESP32",
+                "BOARD_HAS_PSRAM"
+            ],
+            "compilerPath": "C:/Users/pragd/AppData/Local/Arduino15/packages/esp32/tools/esp-x32/2511/bin/xtensa-esp32-elf-gcc.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "windows-gcc-x64",
+            "forcedInclude": [
+                "C:/Users/pragd/AppData/Local/Arduino15/packages/esp32/hardware/esp32/3.3.7/cores/esp32/Arduino.h"
+            ]
+        }
+    ],
+    "version": 4
+}
