@@ -1,21 +1,21 @@
 import { useEffect, useState, useRef } from "react";
 import { Camera, Droplets, Sun, Power, AlertTriangle, Zap } from "lucide-react";
 
-// The local IP of the ESP32 on the network
-export const ESP32_IP = "http://10.187.13.177";
-
 export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status: any) => void }) => {
+    const [esp32Ip, setEsp32Ip] = useState(() => localStorage.getItem("esp32_ip") || "http://10.187.13.177");
     const [status, setStatus] = useState<any>(null);
     const [error, setError] = useState<string | null>(null);
     const [pumpLoading, setPumpLoading] = useState(false);
+    const [isEditingIp, setIsEditingIp] = useState(false);
+    const [tempIp, setTempIp] = useState(esp32Ip);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const statusRef = useRef<any>(null);
 
     useEffect(() => {
         const fetchStatus = () => {
-            fetch(`${ESP32_IP}/status`)
+            fetch(`${esp32Ip}/status`)
                 .then((res) => {
-                    if (!res.ok) throw new Error("Network response was not ok");
+                    if (!res.ok) throw new Error("Hardware returned an error");
                     return res.json();
                 })
                 .then((data) => {
@@ -26,14 +26,14 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                 })
                 .catch((err) => {
                     console.error("Hardware disconnected:", err);
-                    setError("Failed to connect to ESP32 Hardware");
+                    setError(err.message === "Failed to fetch" ? "Hardware Unreachable (Timeout)" : err.message);
                 });
         };
 
         const fetchImage = () => {
-            fetch(`${ESP32_IP}/image`)
+            fetch(`${esp32Ip}/image`)
                 .then((res) => {
-                    if (!res.ok) throw new Error("Network response was not ok");
+                    if (!res.ok) throw new Error("Image buffer failed");
                     return res.arrayBuffer();
                 })
                 .then((buf) => {
@@ -82,11 +82,10 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                 });
         };
 
-        // Fetch immediately on mount
+        // Fetch immediately on mount or when IP changes
         fetchStatus();
         fetchImage();
 
-        // Status refreshes every 2s (lightweight), image every 10s (frees framebuffer for analysis)
         const statusInterval = setInterval(fetchStatus, 2000);
         const imageInterval = setInterval(fetchImage, 10000);
 
@@ -94,11 +93,20 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
             clearInterval(statusInterval);
             clearInterval(imageInterval);
         };
-    }, []);
+    }, [esp32Ip]);
+
+    const handleSaveIp = () => {
+        let formattedIp = tempIp.trim();
+        if (!formattedIp.startsWith("http")) formattedIp = `http://${formattedIp}`;
+        setEsp32Ip(formattedIp);
+        localStorage.setItem("esp32_ip", formattedIp);
+        setIsEditingIp(false);
+        setError(null);
+    };
 
     const sendPumpCommand = (state: "on" | "off" | "auto") => {
         setPumpLoading(true);
-        fetch(`${ESP32_IP}/pump?state=${state}`)
+        fetch(`${esp32Ip}/pump?state=${state}`)
             .then((res) => {
                 if (!res.ok) throw new Error("Pump command failed");
                 return res.json();
@@ -120,6 +128,15 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
             <div className="flex items-center gap-2 mb-4">
                 <Camera className="h-4 w-4 text-primary" />
                 <h3 className="font-display font-semibold text-foreground">Hardware Link (ESP32-CAM)</h3>
+                <button 
+                  onClick={() => {
+                    setTempIp(esp32Ip);
+                    setIsEditingIp(!isEditingIp);
+                  }}
+                  className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors"
+                >
+                   <Power className={`h-3 w-3 ${isEditingIp ? 'text-primary' : ''}`} />
+                </button>
                 {status && !error ? (
                     <span className="ml-auto flex items-center gap-1 text-xs text-primary font-medium">
                         <span className="h-2 w-2 rounded-full bg-primary animate-pulse" /> Live
@@ -130,6 +147,24 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     </span>
                 )}
             </div>
+
+            {isEditingIp && (
+              <div className="mb-4 flex gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <input 
+                  type="text"
+                  value={tempIp}
+                  onChange={(e) => setTempIp(e.target.value)}
+                  placeholder="http://10.187.13.177"
+                  className="flex-grow bg-black/40 border border-border rounded px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
+                />
+                <button 
+                  onClick={handleSaveIp}
+                  className="bg-primary hover:bg-primary/80 text-primary-foreground text-[10px] font-bold px-3 py-1 rounded"
+                >
+                  SAVE
+                </button>
+              </div>
+            )}
 
             <div className="relative w-full aspect-[4/3] bg-black rounded-lg overflow-hidden border border-border mb-4 flex-shrink-0">
                 <canvas
@@ -143,12 +178,27 @@ export const HardwareDashboard = ({ onStatusUpdate }: { onStatusUpdate?: (status
                     <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 text-white text-xs text-center p-4">
                         <AlertTriangle className="h-8 w-8 text-warning mb-2" />
                         <p className="font-semibold mb-1">{error}</p>
-                        <p className="text-[10px] opacity-80 mb-2">Target: {ESP32_IP}</p>
+                        <p className="text-[10px] opacity-80 mb-2">Target: {esp32Ip}</p>
+                        <div className="flex gap-2 mb-3">
+                          <button 
+                            onClick={() => window.open(esp32Ip, '_blank')}
+                            className="text-[9px] underline text-primary"
+                          >
+                            Open URL
+                          </button>
+                          <button 
+                            onClick={() => setIsEditingIp(true)}
+                            className="text-[9px] underline text-primary"
+                          >
+                            Change IP
+                          </button>
+                        </div>
                         {window.location.protocol === "https:" && (
                             <div className="bg-warning/20 border border-warning/30 p-2 rounded text-[9px] leading-tight">
                                 <span className="font-bold text-warning">HTTPS DETECTED:</span><br/>
-                                Click the Lock icon in browser bar → Site Settings → 
-                                Set <b>Insecure content</b> to <b>Allow</b> to connect to local hardware.
+                                1. Open the [Lock] icon in browser bar.<br/>
+                                2. Go to [Site Settings].<br/>
+                                3. Set [Insecure content] to [Allow].
                             </div>
                         )}
                     </div>

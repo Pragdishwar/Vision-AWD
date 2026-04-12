@@ -198,6 +198,7 @@ void set_cors_headers(httpd_req_t *req) {
     httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     httpd_resp_set_hdr(req, "Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+    httpd_resp_set_hdr(req, "Access-Control-Allow-Private-Network", "true");
 }
 
 // Global Pre-flight / OPTIONS handler for browser checks
@@ -566,20 +567,19 @@ void setup() {
 }
 
 void loop() {
-  // WiFi Watchdog
+  // WiFi Watchdog & IP Status
+  static unsigned long lastIPPrint = 0;
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("\nWiFi connection lost! Reconnecting...");
-    WiFi.disconnect();
-    WiFi.begin(ssid, password);
-    unsigned long startAttemptTime = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < 10000) {
-      delay(500);
-      Serial.print(".");
+    if (millis() - lastIPPrint > 5000) { // Only print reconnect message every 5s to avoid log spam
+      Serial.println("\nWiFi connection lost! Reconnecting in background...");
+      WiFi.begin(ssid, password);
+      lastIPPrint = millis();
     }
-    if (WiFi.status() == WL_CONNECTED) {
-       Serial.println("\nSUCCESS: WiFi Reconnected!");
-    } else {
-       Serial.println("\nFAIL: Reconnect attempt timed out.");
+  } else {
+    if (millis() - lastIPPrint > 30000) { // Local IP Shout-out every 30s
+       Serial.print(">>> Heartbeat: System Alive at http://");
+       Serial.println(WiFi.localIP());
+       lastIPPrint = millis();
     }
   }
 
