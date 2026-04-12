@@ -2,6 +2,7 @@
 #include "esp_camera.h"
 #include <WiFi.h>
 #include "esp_http_server.h"
+#include <Preferences.h>
 
 // ==========================================================
 // CONFIGURATION (Update these!)
@@ -67,6 +68,7 @@ const unsigned long CHECK_INTERVAL = 10000; // Check and analyze every 10 second
 
 // HTTP Server Handle
 httpd_handle_t camera_httpd = NULL;
+Preferences preferences;
 
 // Frontend HTML Dashboard
 const char PROGMEM INDEX_HTML[] = R"rawliteral(
@@ -335,7 +337,8 @@ static esp_err_t config_handler(httpd_req_t *req) {
     if (httpd_req_get_url_query_str(req, buf, buf_len) == ESP_OK) {
       if (httpd_query_key_value(buf, "threshold", thresh, sizeof(thresh)) == ESP_OK) {
         DRY_BRIGHTNESS_THRESHOLD = (uint8_t)atoi(thresh);
-        Serial.printf("Dashboard updated threshold to: %d\n", DRY_BRIGHTNESS_THRESHOLD);
+        preferences.putUInt("thresh", DRY_BRIGHTNESS_THRESHOLD); // Save to NVS
+        Serial.printf("Dashboard updated threshold to: %d (Saved to NVS)\n", DRY_BRIGHTNESS_THRESHOLD);
       }
     }
     free(buf);
@@ -507,6 +510,11 @@ void performAnalysis() {
 void setup() {
   Serial.begin(115200);
   Serial.println("\n--- Starting AWD Smart Irrigation ---");
+
+  // Initialize NVS and load threshold
+  preferences.begin("awd", false);
+  DRY_BRIGHTNESS_THRESHOLD = preferences.getUInt("thresh", 150);
+  Serial.printf("NVS Loaded: Threshold = %d\n", DRY_BRIGHTNESS_THRESHOLD);
 
   pinMode(RELAY_PIN, OUTPUT);
   pinMode(LED_PIN, OUTPUT);

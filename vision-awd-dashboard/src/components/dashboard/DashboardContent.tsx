@@ -9,8 +9,9 @@ import { HardwareDashboard, ESP32_IP } from "./HardwareDashboard";
 // Initialization
 const DashboardContent = () => {
   const [pumpOn, setPumpOn] = useState(false);
-  const [threshold, setThreshold] = useState([45]);
+  const [threshold, setThreshold] = useState([150]); // Default to 150 to match ESP32 boot default
   const [moistureData, setMoistureData] = useState<{ time: string, moisture: number, brightness: number }[]>([]);
+  const [status, setStatus] = useState<any>(null);
   const [logs, setLogs] = useState<{ time: string, event: string, type: "info" | "warning" | "success" }[]>([
     { time: new Date().toLocaleTimeString("en-US", { hour12: false }), event: "System initialized. Waiting for hardware data...", type: "info" as const },
   ]);
@@ -38,9 +39,16 @@ const DashboardContent = () => {
 
   const handleStatusUpdate = (status: any) => {
     // With the digital sensor fix, sensorVal is now 0 (WET) or 1 (DRY).
-    // Let's map 0 -> 100% moisture, 1 -> 0% moisture.
+    // Map sensor values to moisture percentage
     const moistureValue = status.sensorVal === 0 ? 100 : 0;
     const avgBrightness = Math.round((status.s1 + status.s2 + status.s3 + status.s4) / 4);
+    
+    setStatus(status); // Store the full status in state
+    
+    // Sync UI threshold with actual hardware threshold
+    if (status.thresh !== undefined && status.thresh !== threshold[0]) {
+      setThreshold([status.thresh]);
+    }
 
     const timeString = new Date().toLocaleTimeString("en-US", { hour12: false, hour: "2-digit", minute: "2-digit" });
 
@@ -76,8 +84,8 @@ const DashboardContent = () => {
     }
   };
 
+  const soilStatus = status?.visionDry || status?.sensorDry ? "Dry" : "Wet";
   const currentMoisture = moistureData[moistureData.length - 1]?.moisture ?? 0;
-  const soilStatus = currentMoisture < threshold[0] ? "Dry" : "Wet";
 
   const metrics = [
     { label: "Soil Status", value: soilStatus, icon: Sun, color: soilStatus === "Dry" ? "text-warning" : "text-primary" },
@@ -170,10 +178,24 @@ const DashboardContent = () => {
           </div>
           <div className="relative z-10">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-medium text-foreground text-sm">Moisture Threshold</p>
-              <span className="text-xs font-semibold text-primary drop-shadow-[0_0_8px_rgba(50,205,50,0.5)]">{threshold[0]}%</span>
+              <p className="font-medium text-foreground text-sm">Vision Threshold</p>
+              <span className="text-xs font-semibold text-primary drop-shadow-[0_0_8px_rgba(50,205,50,0.5)]">{threshold[0]} abs</span>
             </div>
-            <Slider value={threshold} onValueChange={setThreshold} min={20} max={80} step={1} className="w-full relative z-10" />
+            <Slider 
+              value={threshold} 
+              onValueChange={setThreshold} 
+              onValueCommit={async (val) => {
+                try {
+                  await fetch(`${ESP32_IP}/config?threshold=${val[0]}`);
+                } catch (err) {
+                  console.error("Failed to commit threshold:", err);
+                }
+              }}
+              min={0} 
+              max={255} 
+              step={1} 
+              className="w-full relative z-10" 
+            />
           </div>
         </div>
 
